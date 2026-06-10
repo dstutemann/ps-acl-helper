@@ -1,3 +1,5 @@
+export type AclMode = 'replace' | 'add' | 'update'
+
 export interface AclRule {
   id: string
   principalType: 'sid' | 'name'

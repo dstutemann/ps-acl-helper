@@ -1,4 +1,4 @@
-import type { AclRule } from './acl-types'
+import type { AclRule, AclMode } from './acl-types'
 
 function inheritanceVarName(flags: string): string {
   if (flags === 'None') return '$inheritNone'
@@ -16,7 +16,7 @@ function propagationVarName(flags: string): string {
   return `$propagation${parts.join('')}`
 }
 
-export function generatePowerShell(rules: AclRule[], variableName: string): string {
+export function generatePowerShell(rules: AclRule[], variableName: string, mode: AclMode): string {
   if (rules.length === 0) return '# No ACL rules defined'
 
   const lines: string[] = []
@@ -29,8 +29,12 @@ export function generatePowerShell(rules: AclRule[], variableName: string): stri
   }
 
   lines.push(`$acl = Get-Acl -LiteralPath ${pathVar}`)
-  lines.push(`$acl.SetAccessRuleProtection($true, $false)`)
-  lines.push(`@($acl.Access) | ForEach-Object { [void]$acl.RemoveAccessRule($_) }`)
+
+  if (mode === 'replace') {
+    lines.push(`$acl.SetAccessRuleProtection($true, $false)`)
+    lines.push(`@($acl.Access) | ForEach-Object { [void]$acl.RemoveAccessRule($_) }`)
+  }
+
   lines.push(``)
 
   const usedInheritances = new Set<string>()
@@ -80,8 +84,7 @@ export function generatePowerShell(rules: AclRule[], variableName: string): stri
   lines.push(``)
   lines.push(`$rules = @(`)
 
-  for (let i = 0; i < rules.length; i++) {
-    const rule = rules[i]
+  for (const rule of rules) {
     const inhKey = rule.inheritance.length > 0 ? rule.inheritance.sort().join(', ') : 'None'
     const inhVar = inheritVars.get(inhKey)!
     const propVar = propVars.get(rule.propagation)!
@@ -100,7 +103,17 @@ export function generatePowerShell(rules: AclRule[], variableName: string): stri
 
   lines.push(`)`)
   lines.push(``)
-  lines.push(`$rules | ForEach-Object { $acl.AddAccessRule($_) }`)
+
+  if (mode === 'update') {
+    lines.push(`foreach ($rule in $rules) {`)
+    lines.push(`    $existing = $acl.Access | Where-Object { $_.IdentityReference.Value -eq $rule.IdentityReference.Value -and $_.AccessControlType -eq $rule.AccessControlType }`)
+    lines.push(`    foreach ($old in $existing) { [void]$acl.RemoveAccessRule($old) }`)
+    lines.push(`    $acl.AddAccessRule($rule)`)
+    lines.push(`}`)
+  } else {
+    lines.push(`$rules | ForEach-Object { $acl.AddAccessRule($_) }`)
+  }
+
   lines.push(``)
   lines.push(`Set-Acl -LiteralPath ${pathVar} -AclObject $acl`)
 
