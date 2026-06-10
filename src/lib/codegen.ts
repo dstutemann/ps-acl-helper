@@ -16,16 +16,16 @@ function propagationVarName(flags: string): string {
   return `$propagation${parts.join('')}`
 }
 
-export function generatePowerShell(rules: AclRule[], variableName: string, mode: AclMode): string {
+export function generatePowerShell(rules: AclRule[], path: string, mode: AclMode, pathVarName = '$aclPath'): string {
   if (rules.length === 0) return '# No ACL rules defined'
 
   const lines: string[] = []
 
-  const isVariable = variableName.trim().startsWith('$')
-  const pathVar = isVariable ? variableName.trim() : '$aclPath'
+  const pathVar = pathVarName.startsWith('$') ? pathVarName : `$${pathVarName}`
 
-  if (!isVariable) {
-    lines.push(`${pathVar} = '${variableName}'`)
+  if (path) {
+    const quote = path.includes('$') ? '"' : "'"
+    lines.push(`${pathVar} = ${quote}${path}${quote}`)
   }
 
   lines.push(`$acl = Get-Acl -LiteralPath ${pathVar}`)

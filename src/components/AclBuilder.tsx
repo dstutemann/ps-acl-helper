@@ -41,8 +41,6 @@ export function AclBuilder() {
   const [aclMode, setAclMode] = useState<AclMode>('replace')
   const [showAdvanced, setShowAdvanced] = useState(false)
 
-  const effectiveVariable = filePath || variableName
-
   const addRule = (rule: Omit<AclRule, 'id'>) => {
     setRules(prev => [...prev, { ...rule, id: crypto.randomUUID() }])
     setIsAdding(false)
@@ -70,7 +68,7 @@ export function AclBuilder() {
     })
   }
 
-  const code = generatePowerShell(rules, effectiveVariable, aclMode)
+  const code = generatePowerShell(rules, filePath, aclMode, variableName)
 
   return (
     <div className="space-y-6">
@@ -107,8 +105,8 @@ export function AclBuilder() {
             />
             <p className="text-xs text-muted-foreground">
               {filePath
-                ? <>Der Pfad wird direkt im generierten Code verwendet: <code className="bg-muted px-1 rounded">{effectiveVariable}</code></>
-                : <>Kein Pfad angegeben – es wird die Variable <code className="bg-muted px-1 rounded">{variableName}</code> verwendet</>
+                ? <>Der Pfad wird der Variable <code className="bg-muted px-1 rounded">{variableName}</code> zugewiesen</>
+                : <>Kein Pfad angegeben – die Variable <code className="bg-muted px-1 rounded">{variableName}</code> muss extern definiert sein</>
               }
             </p>
           </div>
@@ -141,13 +139,9 @@ export function AclBuilder() {
                   onChange={e => setVariableName(e.target.value)}
                   placeholder="$aclPath"
                   className="max-w-xs font-mono text-sm h-8"
-                  disabled={!!filePath}
                 />
                 <p className="text-xs text-muted-foreground">
-                  {filePath
-                    ? 'Wird ignoriert, wenn ein Dateipfad angegeben ist'
-                    : 'PowerShell-Variable, die im generierten Code verwendet wird'
-                  }
+                  PowerShell-Variable, die im generierten Code für den Pfad verwendet wird
                 </p>
               </div>
             )}
