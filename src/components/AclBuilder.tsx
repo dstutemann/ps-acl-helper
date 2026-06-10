@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { RuleEditor } from './RuleEditor'
 import { CodeOutput } from './CodeOutput'
 import {
   type AclRule,
+  type AclMode,
   WELL_KNOWN_SIDS,
   getAppliesToLabel,
 } from '@/lib/acl-types'
@@ -19,13 +21,27 @@ import {
   ArrowUp,
   ArrowDown,
   Shield,
+  ChevronDown,
+  ChevronRight,
+  FolderOpen,
 } from 'lucide-react'
+
+const ACL_MODE_OPTIONS = [
+  { value: 'replace', label: 'Ersetzen – Alle bestehenden Berechtigungen entfernen und neu setzen' },
+  { value: 'add', label: 'Hinzufügen – Regeln zu bestehenden Berechtigungen hinzufügen' },
+  { value: 'update', label: 'Aktualisieren – Bestehende Regeln pro Benutzer/SID ersetzen oder hinzufügen' },
+]
 
 export function AclBuilder() {
   const [rules, setRules] = useState<AclRule[]>([])
   const [editingRule, setEditingRule] = useState<AclRule | null>(null)
   const [isAdding, setIsAdding] = useState(false)
-  const [variableName, setVariableName] = useState('$wpPath')
+  const [variableName, setVariableName] = useState('$aclPath')
+  const [filePath, setFilePath] = useState('')
+  const [aclMode, setAclMode] = useState<AclMode>('replace')
+  const [showAdvanced, setShowAdvanced] = useState(false)
+
+  const effectiveVariable = filePath || variableName
 
   const addRule = (rule: Omit<AclRule, 'id'>) => {
     setRules(prev => [...prev, { ...rule, id: crypto.randomUUID() }])
@@ -54,7 +70,7 @@ export function AclBuilder() {
     })
   }
 
-  const code = generatePowerShell(rules, variableName)
+  const code = generatePowerShell(rules, effectiveVariable, aclMode)
 
   return (
     <div className="space-y-6">
@@ -71,18 +87,72 @@ export function AclBuilder() {
         </div>
       </div>
 
-      {/* Path Variable */}
-      <div className="space-y-2">
-        <Label>Path Variable</Label>
-        <Input
-          value={variableName}
-          onChange={e => setVariableName(e.target.value)}
-          placeholder="$wpPath"
-          className="max-w-xs font-mono"
-        />
-        <p className="text-xs text-muted-foreground">
-          The PowerShell variable or literal path to apply the ACL to
-        </p>
+      {/* Path & Mode Configuration */}
+      <div className="border rounded-lg overflow-hidden">
+        <div className="px-4 py-3 bg-muted/30 border-b">
+          <h2 className="font-semibold text-sm">Ziel & Modus</h2>
+        </div>
+        <div className="p-4 space-y-4">
+          {/* File Path Input */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5">
+              <FolderOpen className="h-3.5 w-3.5" />
+              Dateipfad
+            </Label>
+            <Input
+              value={filePath}
+              onChange={e => setFilePath(e.target.value)}
+              placeholder="z.B. C:\Shares\Daten oder leer lassen für Variable"
+              className="font-mono"
+            />
+            <p className="text-xs text-muted-foreground">
+              {filePath
+                ? <>Der Pfad wird direkt im generierten Code verwendet: <code className="bg-muted px-1 rounded">{effectiveVariable}</code></>
+                : <>Kein Pfad angegeben – es wird die Variable <code className="bg-muted px-1 rounded">{variableName}</code> verwendet</>
+              }
+            </p>
+          </div>
+
+          {/* ACL Mode */}
+          <div className="space-y-2">
+            <Label>Modus</Label>
+            <Select
+              value={aclMode}
+              onChange={e => setAclMode(e.target.value as AclMode)}
+              options={ACL_MODE_OPTIONS}
+              className="max-w-2xl"
+            />
+          </div>
+
+          {/* Advanced: Variable Name */}
+          <div>
+            <button
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {showAdvanced ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+              Erweitert
+            </button>
+            {showAdvanced && (
+              <div className="mt-2 pl-4 border-l-2 border-muted space-y-2">
+                <Label className="text-xs">Variablenname</Label>
+                <Input
+                  value={variableName}
+                  onChange={e => setVariableName(e.target.value)}
+                  placeholder="$aclPath"
+                  className="max-w-xs font-mono text-sm h-8"
+                  disabled={!!filePath}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {filePath
+                    ? 'Wird ignoriert, wenn ein Dateipfad angegeben ist'
+                    : 'PowerShell-Variable, die im generierten Code verwendet wird'
+                  }
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Permission Entries - Windows-style table */}
