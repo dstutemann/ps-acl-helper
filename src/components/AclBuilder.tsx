@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { RuleEditor } from './RuleEditor'
 import { CodeOutput } from './CodeOutput'
+import { SddlImport } from './SddlImport'
 import {
   type AclRule,
   type AclMode,
@@ -50,6 +51,10 @@ export function AclBuilder() {
     if (!editingRule) return
     setRules(prev => prev.map(r => r.id === editingRule.id ? { ...rule, id: r.id } : r))
     setEditingRule(null)
+  }
+
+  const addRules = (newRules: Omit<AclRule, 'id'>[]) => {
+    setRules(prev => [...prev, ...newRules.map(r => ({ ...r, id: crypto.randomUUID() }))])
   }
 
   const deleteRule = (id: string) => {
@@ -148,6 +153,9 @@ export function AclBuilder() {
           </div>
         </div>
       </div>
+
+      {/* SDDL Import */}
+      <SddlImport onApply={addRules} />
 
       {/* Permission Entries - Windows-style table */}
       <div className="border rounded-lg overflow-hidden">
